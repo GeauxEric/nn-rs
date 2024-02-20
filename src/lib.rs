@@ -45,6 +45,13 @@ impl Value {
     pub fn new(data: f32) -> Self {
         Value(Rc::new(Value_::new(data)))
     }
+
+    pub fn tanh(&self) -> Self {
+        let d= self.get_data().tanh();
+        let mut v = Value_::new(d);
+        v.op = Op::Tanh((*self).clone());
+        Value(Rc::new(v))
+    }
 }
 
 impl Deref for Value {
@@ -111,5 +118,7 @@ mod tests {
         let v4 = &v3 - &v2; // 1.0
         let v5 = &v4 * &v3; // 3.0
         assert_eq!(v5.get_data(), 3.0);
+        let v6 = v5.tanh();
+        assert_eq!(v5.get_data().tanh(), v6.get_data());
     }
 }
