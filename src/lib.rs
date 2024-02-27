@@ -18,6 +18,21 @@ struct Value_ {
     op: Op,
 }
 
+fn get_id() -> usize {
+    todo!()
+}
+
+impl Value_ {
+    pub fn new(data: f32) -> Self {
+        Value_ {
+            data: RefCell::new(data),
+            grad: RefCell::new(0.0),
+            op: Op::None,
+            id: get_id(),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Op {
     None,
