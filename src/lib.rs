@@ -5,6 +5,19 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct Value(Rc<Value_>);
 
+impl Deref for Value {
+    type Target = Value_;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Value {
+    pub fn new(data: f32) -> Self {
+        Value(Rc::new(Value_::new(data)))
+    }
+}
+
 struct Value_ {
     // unique id
     id: usize,
@@ -34,6 +47,10 @@ impl Value_ {
             id: get_id(),
         }
     }
+
+    pub fn get_data(&self) -> f32 {
+        *self.data.borrow()
+    }
 }
 
 #[derive(Debug)]
@@ -41,10 +58,13 @@ enum Op {
     None,
 }
 
-
 #[cfg(test)]
 mod tests {
+    use crate::Value;
+
     #[test]
     fn it_works() {
+        let v1 = Value::new(0.5);
+        assert_eq!(v1.get_data(), 0.5);
     }
 }
