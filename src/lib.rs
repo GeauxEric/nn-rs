@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct Value(Rc<Value_>);
 
@@ -18,8 +19,10 @@ struct Value_ {
     op: Op,
 }
 
+static ID: AtomicUsize = AtomicUsize::new(0);
+
 fn get_id() -> usize {
-    todo!()
+    ID.fetch_add(1, Ordering::Relaxed)
 }
 
 impl Value_ {
