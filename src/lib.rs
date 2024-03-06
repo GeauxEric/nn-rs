@@ -167,6 +167,46 @@ impl std::ops::Sub for &Value {
     }
 }
 
+fn calculate_grad(root: &Value) {
+    *root.0.grad.borrow_mut() = 1.0;
+    let tp_order = topological_order(root);
+    for v in &tp_order {
+        match &v.op {
+            Op::None => {}
+            Op::Add(v1, v2) => {
+                // v = v1 + v2
+                // d(v) / d(v1) = 1
+                // d(L) / d(v1) = d(L) / d(v) * d(v) / d(v1) = parent_grad * 1.0
+                *v1.grad.borrow_mut() += v.get_grad();
+                *v2.grad.borrow_mut() += v.get_grad();
+            }
+            Op::Mul(v1, v2) => {
+                // v = v1 * v2
+                // d(v) / d(v1) = v2
+                // d(L) / d(v1) = d(L) / d(v) * d(v) / d(v1) = parent_grad * v2
+                *v1.grad.borrow_mut() += v.get_grad() * v2.get_data();
+                *v2.grad.borrow_mut() += v.get_grad() * v1.get_data();
+            }
+            Op::Tanh(v1) => {
+                // v = tanh(v1)
+                // d(v) / d(v1) = 1 - (tanh(v1)) ^ 2
+                // d(L) / d(v1) = parent_grad * (1 - (tanh(v1)) ^ 2)
+                let d = v1.get_data();
+                let local_grad = 1.0 - d.tanh().powi(2);
+                let grad = v.get_grad() * local_grad;
+                *v1.grad.borrow_mut() += grad;
+            }
+            Op::Sub(v1, v2) => {
+                // v = v1 - v2
+                // d(v) / d(v1) = 1
+                // d(v) / d(v2) = -1
+                *v1.grad.borrow_mut() += v.get_grad();
+                *v2.grad.borrow_mut() += -v.get_grad();
+            }
+        }
+    }
+}
+
 fn viz_computation_graph(value: &Value, graph: &mut Graph) {
     let tp_order = topological_order(value);
 
@@ -175,7 +215,8 @@ fn viz_computation_graph(value: &Value, graph: &mut Graph) {
         let value_node = node!(
             value_node_id,
             vec![
-                attr!("label", esc format!("{} | data={} grad={} op={}", value.id, value.get_data(), value.get_grad(), value.op))
+                attr!("label", esc format!("{} | data={} grad={} op={}", value.id,
+                    value.get_data(), value.get_grad(), value.op))
             ]
         );
         graph.add_stmt(value_node.into());
@@ -214,7 +255,7 @@ mod tests {
     use graphviz_rust::exec;
     use graphviz_rust::printer::PrinterContext;
 
-    use crate::{viz_computation_graph, Value};
+    use crate::{calculate_grad, viz_computation_graph, Value};
 
     #[test]
     fn it_works() {
@@ -228,6 +269,8 @@ mod tests {
         assert_eq!(v5.get_data(), 0.15);
         let v6 = &v5.tanh();
         assert_eq!(v6.get_data(), 0.15f32.tanh());
+
+        calculate_grad(v6);
 
         let mut graph = graph!(id!("computation"));
         viz_computation_graph(&v6, &mut graph);
